@@ -1,7 +1,8 @@
-module GeneralP
+module General
 ( eol
 , ignore
-, punctuation) where
+, punctuation
+, checker) where
 
 import Text.ParserCombinators.Parsec
 
@@ -21,3 +22,7 @@ punctuation =   try (string "...")
             <|> string "!"
             <|> string "?"
             <|> string ":"
+            <?> "punctuation"
+
+checker p = do res <- try p <|> return ""
+               if res=="" then return False else return True
