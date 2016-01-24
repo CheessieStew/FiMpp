@@ -12,9 +12,6 @@ eol =   try (string "\n\r")
     <|> string "\r"
     <?> "end of line"
 
-ignore p = do p
-              return ()
-
 punctuation =   try (string "...")
             <|> try (string "!!!")
             <|> try (string "???")
@@ -23,6 +20,9 @@ punctuation =   try (string "...")
             <|> string "?"
             <|> string ":"
             <?> "punctuation"
+
+ignore p = do p
+              return ()
 
 checker p = do res <- try p <|> return ""
                if res=="" then return False else return True
