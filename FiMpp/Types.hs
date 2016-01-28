@@ -7,13 +7,14 @@ module Types(Method(..),
              Variable(..),
              MethodCall(..),
              Class(..),
+             ArithmeticOperator(..),
              actualType,
              legalTypes,
              typeCheck) where
 
 import Data.List
 
-data Class = Class (String,[String],String,[Method],String)
+data Class = Class (String,[String],String,[Method],String) | Error
   deriving (Eq)
 instance Show Class where
   show (Class(address,interfaces,title,methods,author))
@@ -36,13 +37,29 @@ instance Show Method where
                 ++ (if (isMain method) then "(main) " else "")
                 ++ name method
                 ++  "(" ++ intercalate ", " (map show (arguments method)) ++ ")"
-                ++ "\n{\n" ++ intercalate "\n" (map (("\t"++).show) (orders method)) ++ "\n}"
+                ++ "\n{\n" ++ intercalate "\n" (map show (orders method)) ++ "\n}"
 
 data VarType = Number | Character | Boolean | Word | Many VarType | NoType
   deriving (Show,Eq)
 
 data Literal = N Double | C Char | B Bool | W String | NULL
-  deriving (Eq)
+  deriving (Eq,Ord)
+instance Num Literal where
+  (+) (N d1) (N d2) = N (d1+d2)
+  (+) _ _ = NULL
+  (-) (N d1) (N d2) = N (d1-d2)
+  (-) _ _ = NULL
+  (*) (N d1) (N d2) = N (d1*d2)
+  (*) _ _ = NULL
+  abs (N d1) = N (abs d1)
+  signum (N d1) = N (signum d1)
+  fromInteger i = N (fromInteger i)
+  negate (N d1) = N (negate d1)
+instance Fractional Literal where
+  (/) (N d1) (N d2) = N (d1/d2)
+  (/) _ _ = NULL
+  fromRational rat = N (fromRational rat)
+
 instance Show Literal where
   show (N v) =  show v
   show (C v) = show v
@@ -57,19 +74,14 @@ instance Show Variable where
 
 data VarOrLiteral = Var Variable
                   | Lit Literal
-                  | Add (VarOrLiteral,VarOrLiteral)
-                  | Substract (VarOrLiteral,VarOrLiteral)
-                  | Multiply (VarOrLiteral,VarOrLiteral)
-                  | Divide (VarOrLiteral,VarOrLiteral)
+                  | Math ArithmeticOperator
+                  | Logic BoolOperator
                   | ValMethodCall (MethodCall)
   deriving (Eq)
 instance Show VarOrLiteral where
   show (Var v) = show v
   show (Lit v) = show v
-  show (Add (v1,v2)) = show v1 ++ "+" ++ show v2
-  show (Substract (v1,v2)) = show v1 ++ "-" ++ show v2
-  show (Multiply (v1,v2)) = show v1 ++ "*" ++ show v2
-  show (Divide (v1,v2)) = show v1 ++ "/" ++ show v2
+  show (Math v) = show v
   show (ValMethodCall v) = show v
 
 data Instruction = NoInstruction
@@ -78,6 +90,8 @@ data Instruction = NoInstruction
                  | Increment Variable
                  | Decrement Variable
                  | InsMethodCall MethodCall
+                 | Reassign (Variable,VarOrLiteral)
+                 | If (VarOrLiteral,[Instruction],[Instruction])
   deriving (Eq)
 instance Show Instruction where
   show NoInstruction = "nope"
@@ -86,11 +100,25 @@ instance Show Instruction where
   show (Increment v) = show v ++ "++"
   show (Decrement v) = show v ++ "--"
   show (InsMethodCall v) = show v
-
+  show (Reassign (v,a)) = show v ++ ":=" ++ show a
+  show (If (vol,case1,case2)) = "if ("++ show vol ++ ") then \n{"
+                                ++ intercalate "\n" (map show case1) ++ "} else \n{"
+                                ++ intercalate "\n" (map show case2) ++ "}"
 data MethodCall = MethodCall (String, [VarOrLiteral])
   deriving (Eq)
 instance Show MethodCall where
   show (MethodCall (name,args)) = name++ "(" ++ intercalate ", " (map show args) ++ ")"
+
+data ArithmeticOperator =  Add (VarOrLiteral,VarOrLiteral)
+                         | Substract (VarOrLiteral,VarOrLiteral)
+                         | Multiply (VarOrLiteral,VarOrLiteral)
+                         | Divide (VarOrLiteral,VarOrLiteral)
+  deriving (Eq)
+instance Show ArithmeticOperator where
+  show (Add (v1,v2)) = show v1 ++ "+" ++ show v2
+  show (Substract (v1,v2)) = show v1 ++ "-" ++ show v2
+  show (Multiply (v1,v2)) = show v1 ++ "*" ++ show v2
+  show (Divide (v1,v2)) = show v1 ++ "/" ++ show v2
 
 data BoolOperator = Equal (VarOrLiteral,VarOrLiteral)
                   | NotEqual (VarOrLiteral,VarOrLiteral)
@@ -98,9 +126,18 @@ data BoolOperator = Equal (VarOrLiteral,VarOrLiteral)
                   | GreaterEqual (VarOrLiteral,VarOrLiteral)
                   | Less (VarOrLiteral,VarOrLiteral)
                   | LessEqual (VarOrLiteral,VarOrLiteral)
-  deriving (Show,Eq)
-
-
+                  | And (VarOrLiteral,VarOrLiteral)
+                  | Or (VarOrLiteral,VarOrLiteral)
+  deriving (Eq)
+instance Show BoolOperator where
+  show (Equal (v1,v2)) = show v1 ++ "==" ++ show v2
+  show (NotEqual (v1,v2)) = show v1 ++ "!=" ++ show v2
+  show (Greater (v1,v2)) = show v1 ++ ">" ++ show v2
+  show (GreaterEqual (v1,v2)) = show v1 ++ ">=" ++ show v2
+  show (Less (v1,v2)) = show v1 ++ "<" ++ show v2
+  show (LessEqual (v1,v2)) = show v1 ++ "<=" ++ show v2
+  show (And (v1,v2)) = show v1 ++ "&&" ++ show v2
+  show (Or (v1,v2)) = show v1 ++ "||" ++ show v2
 
 
 legalTypes =
@@ -118,7 +155,7 @@ legalTypes =
 actualType "number" = Number
 actualType "letter" = Character
 actualType "character" = Character
-actualType "logical" = Character
+actualType "logical" = Boolean
 actualType "argument" = Boolean
 actualType "logic" = Boolean
 actualType "word" = Word
@@ -132,6 +169,8 @@ typeCheck (Lit (C _)) Character = True
 typeCheck (Lit (W _)) Word = True
 typeCheck (Lit (B _)) Boolean = True
 typeCheck (Lit NULL) _ = True
+typeCheck (Math _) Number = True
+typeCheck (Logic _) Boolean = True
 typeCheck (Var (Variable(_,t1))) t2 = t1==t2
 typeCheck (ValMethodCall _) _ = True
  -- for now, I have no way of checking this, so assigning a number-returning method

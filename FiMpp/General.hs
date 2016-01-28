@@ -15,6 +15,7 @@ eol =   try (string "\n\r")
 punctuation =   try (string "...")
             <|> try (string "!!!")
             <|> try (string "???")
+            <|> try (string ",")
             <|> string "."
             <|> string "!"
             <|> string "?"
@@ -24,5 +25,5 @@ punctuation =   try (string "...")
 ignore p = do p
               return ()
 
-checker p = do res <- try p <|> return ""
-               if res=="" then return False else return True
+checker p = (do res <- try p
+                return True) <|> return False
