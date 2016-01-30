@@ -54,9 +54,7 @@ method reserved = do mainMethod <- checker (string "Today")
                      if (elem name reserved) then fail "Illegal method name" else return ()
                      methodReturns <- (returns >> many space >> someType) <|> return NoType
                      methodArguments <- (args >> many space >> arguments) <|> return []
-                     -- if mainMethod && (methodReturns /= NoType || methodArguments /= []) then fail "Main method should not have arguments or return type" else return ()
-                     -- should replace the following line:
-                     if mainMethod && methodArguments /= [] then fail "Main method should not have any arguments" else return ()
+                     if mainMethod && (methodReturns /= NoType || methodArguments /= []) then fail "Main method should not have arguments or return type" else return ()
                      many space
                      punctuation
                      many space
@@ -108,6 +106,7 @@ instructions final reserved vars = (try $ final vars) <|>
   where remainingInstructions vars = (try $ final vars) <|> instructions final reserved vars
 
 instruction reserved vars = try conditional
+                            <|> try saySomething
                             <|> try reassign
                             <|> try varDeclaration
                             <|> try increment
@@ -151,7 +150,7 @@ instruction reserved vars = try conditional
                                    <|> valMethodCall vars <?> "a value"
                       punctuation
                       if typeCheck assigned (getType var) then return (Reassign(var,assigned),Nothing) else fail ("Wrong type assigned to "++ getName var)
-        variable v = do n <- string (getName v)
+        variable v = do n <- try (string (getName v))
                         return (v)
         reassignKeyword = choice $ map (\s -> try $ string s) ["became","becomes","become","is now","are now", "now likes","now like","now is","now are"]
         getName (Variable(n,_)) = n
@@ -175,6 +174,11 @@ instruction reserved vars = try conditional
                    return [NoInstruction]
         startElse = do try  (string "Otherwise" <|> string "Or else")
                        return [NoInstruction]
+        saySomething = do try (string "I said") <|> try (string "I sang")
+                          space
+                          what <- many1 (literalOrVariable vars)
+                          punctuation
+                          return (Say what,Nothing)
 
 -- I'm thinking about giving up.
 

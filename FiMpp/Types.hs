@@ -64,7 +64,7 @@ instance Show Literal where
   show (N v) =  show v
   show (C v) = show v
   show (B v) = show v
-  show (W v) = show v
+  show (W v) = v
   show NULL = "nothing"
 
 data Variable = Variable (String,VarType)
@@ -92,6 +92,7 @@ data Instruction = NoInstruction
                  | InsMethodCall MethodCall
                  | Reassign (Variable,VarOrLiteral)
                  | If (VarOrLiteral,[Instruction],[Instruction])
+                 | Say ([VarOrLiteral])
   deriving (Eq)
 instance Show Instruction where
   show NoInstruction = "nope"
@@ -104,6 +105,7 @@ instance Show Instruction where
   show (If (vol,case1,case2)) = "if ("++ show vol ++ ") then \n{"
                                 ++ intercalate "\n" (map show case1) ++ "} else \n{"
                                 ++ intercalate "\n" (map show case2) ++ "}"
+  show (Say (v)) = "print("++ intercalate ", " (map show v) ++")"
 data MethodCall = MethodCall (String, [VarOrLiteral])
   deriving (Eq)
 instance Show MethodCall where
