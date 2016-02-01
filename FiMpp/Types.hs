@@ -82,6 +82,7 @@ instance Show VarOrLiteral where
   show (Var v) = show v
   show (Lit v) = show v
   show (Math v) = show v
+  show (Logic v) = show v
   show (ValMethodCall v) = show v
 
 data Instruction = NoInstruction

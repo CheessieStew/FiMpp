@@ -132,6 +132,7 @@ instruction reserved vars = try conditional
         decrement = do decremented <- choice (map numericVar vars)
                        space
                        string "got one less"
+                       punctuation
                        return (Decrement(decremented),Nothing)
         numericVar (Variable(vname,Number)) = do try (string vname)
                                                  return (Variable(vname,Number))
@@ -213,6 +214,7 @@ literalOrVariable vars = try add
                      <|> try divide
                      <|> try con
                      <|> try alt
+                     <|> try equal
                      <|> try wrapLiteral
                      <|> try someVar  -- vars should have already been declared
   where wrapLiteral = do res <- try literal
@@ -270,6 +272,21 @@ literalOrVariable vars = try add
                  if typeCheck first Boolean && typeCheck second Boolean
                     then return (Logic(Or(first,second)))
                     else fail "tried to OR non-boolean values"
+        equal = do first <- wrapLiteral <|> try someVar
+                   space
+                   try (string "is") <|> try (string "was") <|> try (string "were")
+                   space
+                   second <- wrapLiteral <|> try someVar
+                   if sameType first second
+                     then return (Logic(Equal(first,second)))
+                     else fail "tried to compare types that are different"
+        sameType (Var(Variable(_,t))) vol = typeCheck vol t
+        sameType vol (Var(Variable(_,t))) = typeCheck vol t
+        sameType (Lit(N _)) (Lit(N _)) = True
+        sameType (Lit(B _)) (Lit(B _)) = True
+        sameType (Lit(C _)) (Lit(C _)) = True
+        sameType (Lit(W _)) (Lit(W _)) = True
+        sameType _ _ = False
 
 
 literal = nullLiteral <|> boolLiteral <|> numLiteral <|> charLiteral <|> stringLiteral <?> "literal"

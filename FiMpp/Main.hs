@@ -29,6 +29,11 @@ runInstruction :: [Method] -> [Scope] -> Instruction -> ([Scope],[String])
 runInstruction methods scope i = aux i
   where aux NoInstruction = (scope,[])
         aux (Return _) = (scope,[]) -- won't happen
+        aux (InsMethodCall (MethodCall(methodName,args))) = (scope, methodOut)
+          where checkName string method = string == name method
+                (methodRes,methodOut) = extr $ runMethod methods (fromJust $ find (checkName methodName) methods) evalArgs
+                extr (out,lit) = (lit,out)
+                (evalArgs,moreOut) = unzip $ (map (evaluate methods scope) args)
         aux (DeclareVar (var,vol)) = (((var,fst $ evalVol vol): (head scope)) : (tail scope),snd $ evalVol vol)
         aux (Increment var) = (modifyFirst var (\n -> (n + (N 1) , [])) scope  [] [])
         aux (Decrement var) = (modifyFirst var (\n -> (n - (N 1) , [])) scope  [] [])
@@ -63,6 +68,7 @@ evaluate methods scope vol = aux vol
         aux (Math(Divide (vol1,vol2))) = ((fst $ aux vol1) / (fst $ aux vol2),[])
         aux (Logic(And (vol1,vol2))) = ((fst $ aux vol1) &&* (fst $ aux vol2),[])
         aux (Logic(Or (vol1,vol2))) = ((fst $ aux vol1) ||* (fst $ aux vol2),[])
+        aux (Logic(Equal (vol1,vol2))) = (B (aux vol1 == aux vol2),[]) -- they won't be method calls, so no output
         (&&*) (B v1) (B v2) = B (v1 && v2)
         (&&*) _ _ = NULL
         (||*) (B v1) (B v2) = B (v1 && v2)
