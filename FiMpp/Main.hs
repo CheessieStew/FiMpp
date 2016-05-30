@@ -90,7 +90,7 @@ main = do args <- getArgs
           if length args /=1 then fail "wrong number of parameters" else return ()
           cl <- parseClassFile (head args)
           putStr $ "running " ++ (head args) ++ "\n\n"
-          if isRight cl then putStr (show $ runClass $ fromRight cl) else fail (fromLeft cl)
+          if isRight cl then sequence (map (\s-> putStr(s++"\n")) $ runClass $ fromRight cl) else fail (fromLeft cl)
   where fromRight (Right smth) = smth
         fromRight (Left _) = Error
         fromLeft (Right _) = ""
